@@ -1,0 +1,22 @@
+---
+language: python
+python:
+  - "3.5"
+  - "3.6"
+  - "nightly"
+
+env:
+  - SITE=test.yml
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y curl
+
+install:
+  - pip install ansible
+
+  # Add ansible.cfg to pick up roles path.
+  - "echo '[defaults]\nroles_path = ../' > ansible.cfg"
+
+script:
+  - "ansible-playbook -i tests/inventory tests/$SITE --syntax-check"

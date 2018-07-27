@@ -1,0 +1,19 @@
+---
+- name: Shadowsocks
+  hosts: all
+  environment:
+        PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    ss_primary_port: 12345
+    ss_guest_port: 30010
+    ss_image: dockerhub.qingcloud.com/dream/hello-world
+    docker_compose_interpreter: "/opt/local/portable-pypy/pypy3.5-5.10.1-linux_x86_64-portable/bin/docker-compose"
+    air_land_project: "shadowsocks"
+    air_land_active_services:
+      - shadowsocks
+
+  roles:
+    - wangwenpei.air-land
+
+  tags:
+    - shadowsocks

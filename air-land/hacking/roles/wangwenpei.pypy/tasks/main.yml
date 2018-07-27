@@ -1,0 +1,81 @@
+- name: Check if we need to install pypy
+  shell: "{{ ansible_python_interpreter }} -c 'import platform;print(platform.python_implementation())'"
+  register: need_pypy
+  ignore_errors: True
+  changed_when: false
+
+- name: Run bootstrap.sh
+  script: bootstrap.sh "{{ pypy_version }}" "{{ pypy_arch }}" "{{ pypy_bin_path }}" "{{ pypy_home }}" "{{ pypy_mirror }}" "{{ pypy_wget_extra }}" "{{ pypy_bz2_tmp }}"
+  when: need_pypy is failed or need_pypy.stdout != "PyPy"
+
+#- name: Ensure pypy home
+#  file: path={{ pypy_home }} state=directory
+#  ignore_errors: True
+#  changed_when: false
+#  when: need_pypy is failed or need_pypy.stdout != "PyPy"
+#
+#- name: Download packages
+#  get_url:
+#    url: "{{ pypy_mirror }}/pypy{{ pypy_version }}-{{ pypy_arch }}.tar.bz2"
+#    dest: "{{ pypy_bz2_tmp }}/pypy{{ pypy_version }}-{{ pypy_arch }}.tar.bz2"
+#    md5sum: "{{ pypy_bz2_md5sum }}"
+#  when: need_pypy is failed or need_pypy.stdout != "PyPy"
+#
+#- name: Extract packages
+#  unarchive:
+#    src: "{{ pypy_bz2_tmp }}/pypy{{ pypy_version }}-{{ pypy_arch }}.tar.bz2"
+#    dest: "{{ pypy_home }}"
+#    creates: yes
+#  when: need_pypy is failed or need_pypy.stdout != "PyPy"
+#
+#- name: Remove package
+#  file: path={{ pypy_bz2_tmp }}/pypy{{ pypy_version }}-{{ pypy_arch }}.tar.bz2 state=absent
+
+#- name: Create Links
+#  file:
+#    src: "{{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/pypy"
+#    dest: "{{ pypy_bin_path }}/python"
+#    state: link
+#  when: need_pypy is failed or need_pypy.stdout != "PyPy"
+
+- name: Check if we need to install pip
+  shell: "{{ pypy_bin_path }}/python -m pip --version"
+  register: need_pip
+  ignore_errors: True
+  changed_when: false
+
+- name: Copy get-pip.py
+  copy: src=get-pip.py dest={{ pypy_home }}/get-pip.py
+  when: need_pip is failed
+
+- name: Install pip
+  shell: "{{ pypy_bin_path }}/python  {{ pypy_home }}/get-pip.py"
+  when: need_pip is failed
+
+- name: Install docker-py@pip
+  shell: "{{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/pip install docker-py"
+  register: pip_docker_py
+  when: pypy_pip_packages.docker_py
+
+- name: Install docker-compose@pip
+  shell: "{{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/pip install docker-compose"
+  register: pip_docker_compose
+  when: pypy_pip_packages.docker_compose
+
+- name: Install ansible@pip
+  shell: "{{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/pip install ansible"
+  register: pip_ansible
+  when: pypy_pip_packages.ansible
+
+- name: Link pip launcher
+  shell: "ln -snf {{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/pip {{ pypy_bin_path }}/pip"
+  when: need_pip is failed
+
+- name: Link docker-compose launcher
+  shell: "ln -snf {{ pypy_home }}/pypy{{ pypy_version }}-{{ pypy_arch }}/bin/docker-compose {{ pypy_bin_path }}/docker-compose"
+  when: need_pip is failed
+
+- name: Remove get-pip.py
+  file: path={{ pypy_home }}/get-pip.py state=absent
+  when: need_pip is failed
+

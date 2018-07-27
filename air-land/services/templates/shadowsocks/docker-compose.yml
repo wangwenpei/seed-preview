@@ -1,0 +1,12 @@
+version: '3'
+services:
+  ss:
+    image: {{ss_image}}
+    container_name: shadowsocks
+    ports:
+      - {{ss_primary_port|default(12345)}}:12345
+      - {{ss_guest_port|default(30010)}}:30010
+    volumes:
+      - {{ air_land_storage_root }}/{{ air_land_project }}/config.json:/config.json
+      - {{ air_land_storage_root }}/{{ air_land_project }}/logs:/var/log
+      - {{ air_land_storage_root }}/{{ air_land_project }}/data:/data

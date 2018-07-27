@@ -1,0 +1,124 @@
+- name: Ensure Directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ air_land_config_root }}"
+    - "{{ air_land_storage_root }}"
+    - "{{ air_land_backup_root }}"
+
+- name: Sync config files
+  synchronize:
+    src: "{{ air_land_project }}/"
+    dest: "{{ air_land_config_root }}/{{ air_land_project }}/"
+  when: air_land_sync_files
+
+- name: Create config directories
+  file:
+    path: "{{ air_land_config_root }}/{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  with_filetree: "{{ air_land_template_root | default(inventory_dir) }}/"
+  when: air_land_project == item.path|basename and item.state == 'directory'
+
+- name: Render config files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ air_land_config_root }}/{{ item.path }}"
+  with_filetree: "{{ air_land_template_root | default(inventory_dir) }}"
+  when: air_land_project == item.path|parentname and item.state == 'file'
+
+- name: Copy simple service
+  copy:
+      src: "{{ air_land_config_root }}/{{ item }}/{{ item }}.service"
+      dest: "/etc/systemd/system/{{ item }}.service"
+      remote_src: yes
+  loop: "{{ air_land_active_services }}"
+  when: air_land_systemd == 'yes' and ansible_distribution != 'MacOSX'
+
+- name: Copy timer service
+  copy:
+      src: "{{ air_land_config_root }}/{{ item }}/{{ item }}.timer"
+      dest: "/etc/systemd/system/{{ item }}.timer"
+      remote_src: yes
+  loop: "{{ air_land_active_timers }}"
+  when: ansible_distribution != 'MacOSX'
+
+- name: Enable simple service
+  service:
+      name: "{{ item }}"
+      state: "{{ air_land_service_status | default('started') }}"
+      enabled: yes
+      daemon_reload: "{% if air_land_force_daemon_reload == 'yes' or air_land_service_status not in ('stopped','restarted') -%}yes{% else -%}no{% endif -%}"
+  loop: "{{ air_land_active_services }}"
+  when: air_land_systemd == 'yes' and ansible_distribution != 'MacOSX'
+
+- name: Enable timer service
+  service:
+      name: "{{ item }}.timer"
+      state: "{{ air_land_timer_status | default('started') }}"
+      enabled: yes
+      daemon_reload: "{% if air_land_force_daemon_reload == 'yes' or air_land_service_status not in ('stopped','restarted') -%}yes{% else -%}no{% endif -%}"
+  loop: "{{ air_land_active_timers }}"
+  when: ansible_distribution != 'MacOSX'
+
+- name: Disable timer service
+  service:
+      name: "{{ item }}.timer"
+      state: stopped
+      enabled: no
+  loop: "{{ air_land_deactive_timers }}"
+  when: ansible_distribution != 'MacOSX'
+  ignore_errors: True
+
+- name: Disable simple service
+  service:
+      name: "{{ item }}.service"
+      state: stopped
+      enabled: no
+  loop: "{{ air_land_deactive_services }}"
+  when: ansible_distribution != 'MacOSX'
+  ignore_errors: True
+
+- name: Clean timer service
+  file:
+      path: "/etc/systemd/system/{{ item }}.timer"
+      state: absent
+  loop: "{{ air_land_deactive_timers }}"
+  when: ansible_distribution != 'MacOSX'
+  ignore_errors: True
+
+- name: Clean simple service
+  file:
+      path: "/etc/systemd/system/{{ item }}.service"
+      state: absent
+  loop: "{{ air_land_deactive_services }}"
+  when: ansible_distribution != 'MacOSX'
+  ignore_errors: True
+
+- name: Try Pull Images
+  command: "{{ docker_compose_interpreter }} -f docker-compose.yml pull"
+  args:
+      chdir: "{{ air_land_config_root }}/{{ item }}"
+  loop: "{{ air_land_active_services }}"
+  when: air_land_systemd != 'yes' and air_land_service_status == 'restarted'
+
+- name: Try Stop Services
+  command: "{{ docker_compose_interpreter }} -f docker-compose.yml down"
+  args:
+      chdir: "{{ air_land_config_root }}/{{ item }}"
+  loop: "{{ air_land_active_services }}"
+  when: air_land_systemd != 'yes' and air_land_service_status in ['restarted','stopped']
+
+- name: Try Start Services
+  shell: "{{ docker_compose_interpreter }} -f docker-compose.yml up --remove-orphan -d"
+  args:
+      chdir: "{{ air_land_config_root }}/{{ item }}"
+  loop: "{{ air_land_active_services }}"
+  when: air_land_systemd != 'yes' and air_land_service_status in ['restarted','started']
+
+- name: Try Execute More Command
+  command: "{{ docker_compose_interpreter }} -f docker-compose.yml exec -T {{item.service}} {{item.command}}"
+  args:
+      chdir: "{{ air_land_config_root }}/{{ item.project }}"
+  loop: "{{ air_land_commands }}"

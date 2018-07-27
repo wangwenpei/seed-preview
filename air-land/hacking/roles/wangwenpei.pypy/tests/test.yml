@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  remote_user: root
+  environment:
+        PATH: "~/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin/bin:/usr/bin:/sbin:/bin"
+  roles:
+    - ansible-pypy

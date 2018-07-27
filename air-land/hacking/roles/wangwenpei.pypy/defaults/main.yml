@@ -1,0 +1,15 @@
+---
+ansible_python_interpreter: "/usr/bin/env python"
+
+pypy_bin_path: /opt/local/bin
+pypy_home: /opt/local/portable-pypy
+pypy_version: 3.5-5.10.1
+pypy_arch: linux_x86_64-portable
+pypy_mirror: https://bitbucket.org/squeaky/portable-pypy/downloads
+pypy_bz2_md5sum: b7a900da2dd2af05131b0560698c20ec
+pypy_bz2_tmp: /tmp
+pypy_wget_extra:
+pypy_pip_packages:
+  docker_py: False
+  docker_compose: True
+  ansible: False

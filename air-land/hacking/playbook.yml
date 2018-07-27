@@ -1,0 +1,93 @@
+---
+- name: DigitalOcean Optimizer
+  hosts: all
+  gather_facts: False
+  remote_user: core
+  vars:
+    digitalocean: no
+  tasks:
+      - name: Enable Root Login
+        raw: sudo cp -rf /home/core/.ssh /root/.ssh
+        when: digitalocean == "yes"
+
+      - name: Ensure Cache Directory
+        raw: test -d /cache || sudo mkdir /cache
+
+      - name: Writeable Cache Directory
+        raw: sudo chmod 777 /cache
+
+- name: Ansible Hacker Client
+  hosts: all
+  gather_facts: False
+  environment:
+        PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    pypy_wget_extra: --no-check-certificate
+    pypy_bz2_tmp: /cache/pypy
+    ansible_python_interpreter: "/usr/bin/env python"
+  roles:
+    - wangwenpei.pypy
+
+- name: Hack Kernel
+  hosts: all
+  gather_facts: True
+  environment:
+    PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    ansible_python_interpreter: "/usr/bin/env python"
+  tasks:
+    - name: Hack Kernel
+      copy:
+        src: "hack/{{ item }}"
+        dest: "/{{ item }}"
+      loop:
+        - "etc/sysctl.d/99-sysctl.conf"
+
+    - name: Reload
+      command: sysctl --system
+
+
+- name: Docker Optimizer
+  hosts: all
+  environment:
+        PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    ansible_python_interpreter: "/usr/bin/env python"
+  tasks:
+      - name: docker registy login
+        shell: |
+          docker login -u {{item.username}} -p {{item.password}} {{item.host}} || echo 'try login docker hub'
+        loop:
+          - username: "{{ lookup('env','DOCKER_HUB_USER') }}"
+            password: "{{ lookup('env','DOCKER_HUB_PASSWORD') }}"
+            host: ""
+          - username: "{{ lookup('env','DOCKER_COMPANY_USER') }}"
+            password: "{{ lookup('env','DOCKER_COMPANY_PASSWORD') }}"
+            host: "{{ lookup('env','DOCKER_COMPANY_HOST') }}"
+
+
+- name: CoreOS Version Optimizer
+  hosts: all
+  environment:
+        PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    ansible_python_interpreter: "/usr/bin/env python"
+    update_os: no
+  tasks:
+      - name: Force Upgrade CoreOS
+        shell: |
+          update_engine_client -update || echo 'skip...'
+        when: update_os == "yes"
+
+- name: CoreOS Reboot Optimizer
+  hosts: all
+  environment:
+        PATH: "/opt/local/bin:/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin"
+  vars:
+    ansible_python_interpreter: "/usr/bin/env python"
+    reboot: no
+  tasks:
+      - name: Reboot
+        shell: sleep 180 && reboot
+        when: reboot == "yes"
+        ignore_errors: True

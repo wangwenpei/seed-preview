@@ -1,0 +1,25 @@
+---
+ansible_python_interpreter: "/usr/bin/env python"
+
+docker_compose_interpreter: "/usr/bin/docker-compose"
+
+air_land_config_root: /etc/air-land
+air_land_storage_root: /data/air-land
+air_land_backup_root: /data/air-backup
+
+air_land_sync_files: false
+air_land_project:
+
+air_land_active_services: []
+air_land_active_timers: []
+
+air_land_deactive_services: []
+air_land_deactive_timers: []
+
+air_land_service_status: started
+air_land_timer_status: started
+air_land_always_update: no
+air_land_force_daemon_reload: yes
+air_land_systemd: no
+air_land_template_root:
+air_land_commands: []
